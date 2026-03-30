@@ -1,0 +1,35 @@
+name: Auto Update JSON List
+
+on:
+  push:
+    paths:
+      - 'data/**' # Skrip berjalan hanya jika ada perubahan di folder data
+
+jobs:
+  update-json:
+    runs-on: ubuntu-latest
+    
+    # Memberikan izin agar GitHub Action bisa menulis/push ke repo sendiri
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Generate JSON List
+        run: |
+          # Mengambil semua nama file di folder 'data', 
+          # menghapus baris kosong, dan mengubahnya menjadi format Array JSON
+          ls data | jq -R -s -c 'split("\n") | map(select(length > 0))' > list.json
+          echo "File list.json berhasil diperbarui dengan daftar file terbaru."
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add list.json
+          
+          # Melakukan commit hanya jika ada perubahan pada list.json
+          git commit -m "chore: auto-sync list.json [skip ci]" || echo "Tidak ada perubahan pada JSON"
+          git push
