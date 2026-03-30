@@ -3,13 +3,13 @@ name: Auto Update JSON List
 on:
   push:
     paths:
-      - 'data/**' # Skrip berjalan hanya jika ada perubahan di folder data
+      - 'data/**' # Robot hanya bekerja jika ada file baru di folder data
 
 jobs:
   update-json:
     runs-on: ubuntu-latest
     
-    # Memberikan izin agar GitHub Action bisa menulis/push ke repo sendiri
+    # Memberikan izin akses menulis ke repositori
     permissions:
       contents: write
 
@@ -19,17 +19,29 @@ jobs:
 
       - name: Generate JSON List
         run: |
-          # Mengambil semua nama file di folder 'data', 
-          # menghapus baris kosong, dan mengubahnya menjadi format Array JSON
+          # 1. Pastikan folder data ada agar tidak error
+          mkdir -p data
+          
+          # 2. Ambil semua file di folder data, ubah jadi format JSON array
+          # Kami menggunakan 'jq' untuk memastikan format JSON valid
           ls data | jq -R -s -c 'split("\n") | map(select(length > 0))' > list.json
-          echo "File list.json berhasil diperbarui dengan daftar file terbaru."
+          
+          echo "Isi list.json terbaru:"
+          cat list.json
 
       - name: Commit and Push Changes
         run: |
+          # Konfigurasi identitas robot GitHub
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          
           git add list.json
           
-          # Melakukan commit hanya jika ada perubahan pada list.json
-          git commit -m "chore: auto-sync list.json [skip ci]" || echo "Tidak ada perubahan pada JSON"
-          git push
+          # Hanya lakukan commit jika ada perubahan pada list.json
+          # [skip ci] digunakan agar robot tidak memicu dirinya sendiri terus-menerus
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "Tidak ada perubahan yang perlu disimpan."
+          else
+            git commit -m "chore: update list.json [skip ci]"
+            git push
+          fi
